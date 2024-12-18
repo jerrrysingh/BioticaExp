@@ -21,31 +21,35 @@ if __name__ == "__main__":
 
     additional_instructions = None
 
-    while True:
-        input_queue = queue.Queue()
-        input_stop_event = threading.Event()
-        input_thread = threading.Thread(target=get_additional_instructions, args=(input_queue, input_stop_event), daemon=True)
-        input_thread.start()
+    try:
+        while True:
+            input_queue = queue.Queue()
+            input_stop_event = threading.Event()
+            input_thread = threading.Thread(target=get_additional_instructions, args=(input_queue, input_stop_event), daemon=True)
+            input_thread.start()
 
-        result_queue = queue.Queue()
-        agent.status = "idle"
-        train_thread = threading.Thread(target=train_agent, args=(agent, additional_instructions, result_queue))
-        train_thread.start()
-        # Monitor the training thread and check for input
-        while train_thread.is_alive():
-            if input_stop_event.is_set() and not input_queue.empty():
-                additional_instructions = input_queue.get()
-                print(f"Received additional instructions: {additional_instructions}")
-                agent.status = "kill"
-            time.sleep(1)
+            result_queue = queue.Queue()
+            agent.status = "idle"
+            train_thread = threading.Thread(target=train_agent, args=(agent, additional_instructions, result_queue))
+            train_thread.start()
+            # Monitor the training thread and check for input
+            while train_thread.is_alive():
+                if input_stop_event.is_set() and not input_queue.empty():
+                    additional_instructions = input_queue.get()
+                    print(f"Received additional instructions: {additional_instructions}")
+                    agent.status = "kill"
+                time.sleep(1)
 
-        train_thread.join()
-        print("Agent killed, restarting...\n")
+            train_thread.join()
+            print("Agent killed, restarting...\n")
+            agent.cleanup()
+            if not result_queue.empty():
+                train_result = result_queue.get()
+                print(f"train result: {train_result}")
+                if "pressed" in train_result:
+                    additional_instructions = f"The mouse recentlly pressed the {train_result}!"
+
+            time.sleep(3)
+    finally:
+        print("Cleaning up...")
         agent.cleanup()
-        if not result_queue.empty():
-            train_result = result_queue.get()
-            print(f"train result: {train_result}")
-            if "pressed" in train_result:
-                additional_instructions = f"The mouse recentlly pressed the {train_result}!"
-
-        time.sleep(3)

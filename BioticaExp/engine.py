@@ -148,32 +148,32 @@ class TrainingAgent:
             logging.info(tool_outputs)
             time.sleep(3)
             try:
-                if run.status != "expired":
-                    run = self.client.beta.threads.runs.submit_tool_outputs(
+                # if run.status != "expired":
+                run = self.client.beta.threads.runs.submit_tool_outputs(
+                    thread_id=self.thread.id,
+                    run_id=run.id,
+                    tool_outputs=tool_outputs
+                )
+                while run.status == "queued" or run.status == "in_progress":
+                    run = self.client.beta.threads.runs.retrieve(
                         thread_id=self.thread.id,
-                        run_id=run.id,
-                        tool_outputs=tool_outputs
+                        run_id=run.id
                     )
-                    while run.status == "queued" or run.status == "in_progress":
-                        run = self.client.beta.threads.runs.retrieve(
-                            thread_id=self.thread.id,
-                            run_id=run.id
-                        )
-                        if self.status == "kill" or (self.status != "waiting" and "pressed" in self.status):
-                            try:
-                                run = self.client.beta.threads.runs.cancel(
-                                    thread_id=self.thread.id,
-                                    run_id=run.id
-                                )
-                                logging.info("Run cancelled")
-                            except Exception as e:
-                                self.status = "error"
-                                print(f"Error cancelling run: {e}")                            
-                            return self.status
-                        time.sleep(0.5)
-                    logging.info("Tool outputs submitted successfully.")
-                else:
-                    print("Run expired")
+                    if self.status == "kill" or (self.status != "waiting" and "pressed" in self.status):
+                        try:
+                            run = self.client.beta.threads.runs.cancel(
+                                thread_id=self.thread.id,
+                                run_id=run.id
+                            )
+                            logging.info("Run cancelled")
+                        except Exception as e:
+                            self.status = "error"
+                            print(f"Error cancelling run: {e}")                            
+                        return self.status
+                    time.sleep(0.5)
+                logging.info("Tool outputs submitted successfully.")
+                # else:
+                #     print("Run expired")
             except Exception as e:
                 print("Failed to submit tool outputs:", e)
 
