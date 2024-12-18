@@ -77,7 +77,7 @@ class TrainingAgent:
                 except Exception as e:
                     print(f"Error calling function {tool.function.name}: {e}")
             print(tool_outputs)
-            time.sleep(20)
+            time.sleep(3)
             try:
                 run = self.client.beta.threads.runs.submit_tool_outputs_and_poll(
                     thread_id=self.thread.id,
