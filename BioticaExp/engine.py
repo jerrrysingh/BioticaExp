@@ -35,11 +35,12 @@ class TrainingAgent:
         "You can control the water dispenser which provides the two mice with access to water. You can control how for how long the mice have access by passing a value in seconds to the feed function \n"
         "You can also create sounds of different frequencies with the speaker. You can do this by passing a frequency to the play_sound function. One lever is on the right side of the cage and the other is on the left side.\n"
         "When a mouse is on the lever, or under it, then the lever is pressed. You have access to a function that informs you when a lever is pressed called wait_for_lever. "
-        "When you call this function, the levers are monitored for the next 3 minutes. "
+        "When you call this function, the levers are monitored for the specified duration. "
         "If the left lever is pressed by the mouse, the function returns 0; if the right lever is pressed, it returns 1; if neither lever is pressed during that time, the function returns -1.\n"
+        "You can wait for the lever to be pressed for up to 2 minutes from a single call but you can call this function multiple times to wait for longer durations.\n"
         # "If you need help you have two ways of getting it. The first is a function called get_reasoning_help, where you can pass in a request as a string, and receive a response from a much smarter artificial intelligence model. "
         "You can call this function once every hour. \n"
-        "If you need help you can call a function called get_human_help, where you can pass in a request as a string and receive a response from a human. You can call this function only once every 1 houror it will be disabled.\n"
+        "If you need help you can call a function called get_human_help, where you can pass in a request as a string and receive a response from a human. You can call this function only once every 1 hour it or itwill be disabled.\n"
         # "Finally you wait for time to pass by passing the number of seconds you would like to wait for into the delay function. The maximum duration is 5 minutes, but you can call this function multiple times to delay for longer durations.\n"
         "Your job is to train the mice to press the lever."
     )
@@ -85,6 +86,7 @@ class TrainingAgent:
         logging.info(f"thread id: {self.thread.id}")
 
     def _log(self, data: dict):
+        logging.info(data)
         payload = {
             "data": data
         }
@@ -126,10 +128,8 @@ class TrainingAgent:
             time.sleep(0.5)
 
         while run.status != "completed":
-            print(f"run status: {run.status}")
             if self.status == "kill" or (self.status != "waiting" and "pressed" in self.status):
                 return self.status
-            logging.info(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {run.status}")
             self._log({"status": run.status})
             thread_messages = self.client.beta.threads.messages.list(self.thread.id, run_id=run.id)
             for message in thread_messages.data:
@@ -137,7 +137,6 @@ class TrainingAgent:
 
             tool_outputs = []
             for tool in run.required_action.submit_tool_outputs.tool_calls:
-                logging.info(f"tool: {tool}")
                 self._log({"tool_calls": str(tool)})
                 try:
                     tool_outputs.append({

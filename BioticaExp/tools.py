@@ -53,7 +53,7 @@ wait_for_lever = {
     "type": "function",
     "function": {
         "name": "wait_for_lever",
-        "description": "Wait for a specified duration until either lever is pressed by the mouse. There are two levers in the cage. Return 0 if the left lever is pressed, 1 if the right lever is pressed, and -1 if neither lever is pressed within the duration. Maximum duration is 60 seconds but you can call this function multiple times to wait for longer durations.",
+        "description": "Wait for a specified duration until either lever is pressed by the mouse. There are two levers in the cage. Return 0 if the left lever is pressed, 1 if the right lever is pressed, and -1 if neither lever is pressed within the duration. You can wait for up to 2 minutes from a single call but you can call this function multiple times to wait for longer durations.",
         "strict": True,
         "parameters": {
             "type": "object",
@@ -63,7 +63,7 @@ wait_for_lever = {
             "properties": {
                 "duration": {
                     "type": "number",
-                    "description": "The time in seconds to wait for either lever to be pressed by the mouse. Maximum duration is 60 seconds but you can call this function multiple times to wait for longer durations."
+                    "description": "The time in seconds to wait for either lever to be pressed by the mouse. You can wait for up to 2 minutes from a single call but you can call this function multiple times to wait for longer durations."
                 }
             },
             "additionalProperties": False
