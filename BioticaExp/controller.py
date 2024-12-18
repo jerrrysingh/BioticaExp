@@ -63,7 +63,7 @@ class MainController:
             return False
         return self.speaker.play(duration, frequency)
 
-    def wait_for_lever(self, timeout: int) -> int:
+    def wait_for_lever(self, duration: int) -> int:
         self.lever_state[0] = self.LeverState.UNPRESSED
         self.lever_state[1] = self.LeverState.UNPRESSED
         start_time = time.time()
@@ -91,42 +91,42 @@ class MainController:
             "Please wait " + str(self.HUMAN_TIMEOUT - (time.time() - self._last_human_help)) + " seconds before using it again.\n"
         )
     
-    def get_reasoning_help(self, request: str) -> str:
-        self._last_reasoning_help = time.time()
-        prompt = (
-            "You are a helpful assistant that helps another smaller LLM with complex reasoning tasks.\n"
-            "The smaller LLM is working on a complex task where it has to control the location of two mice in its cage using the tools provided.\n"
-            "The LLM has access to the following tools:\n"
-            "1. feed(duration: int) -> bool: Feeds the mouse for the given duration in seconds.\n"
-            "2. lights(duration: int, quadrant: int) -> bool: Turns on the lights for the given duration in seconds. The quadrant is an integer between 0 and 3, representing which quadrant of the cage the mouse is in.\n"
-            "3. speakers(duration: int, quadrant: int) -> bool: Plays a sound for the given duration in seconds. The quadrant is an integer between 0 and 3, representing which quadrant of the cage the mouse is in.\n"
-            "4. get_mouse_position() -> Tuple[int, int]: Returns the positions of the two mice in the cage as a tuple of two integers, representing which quadrant of the cage each mouse is in. If the mouse is buried or not visible it will return -1 for that mouse's position. The order of the mice is not preserved.\n"
-            "5. get_human_help(request: str) -> str: Returns a response to the given request. Use only when you are stuck. This tool can be used at most once every 24 hours or it will be disabled.\n\n"
-            "The smaller LLM is having a hard time refining its strategy to train the mouse to go to a certain quadrant of the cage.\n"
-            "You need to reference scientific studies on how scientists have trained mice using rewards to come up with a strategy for the smaller LLM to use.\n"
-            "You should give the smaller LLM a complete strategy that works with the tools provided and doesn't require any additional tools.\n"
-            "You don't need to give step by step instructions, just the overall strategy, but be as detailed as possible and root your reasoning in scientific studies that are well established for training mice.\n"
-            "You can only be used once every hour, so make sure your response is complete and doesn't require addtional clarification from the smaller LLM.\n"
-            "Here is the request / status from the smaller LLM: \n\n"
-            + request + "\n\n"
-        )
+    # def get_reasoning_help(self, request: str) -> str:
+    #     self._last_reasoning_help = time.time()
+    #     prompt = (
+    #         "You are a helpful assistant that helps another smaller LLM with complex reasoning tasks.\n"
+    #         "The smaller LLM is working on a complex task where it has to control the location of two mice in its cage using the tools provided.\n"
+    #         "The LLM has access to the following tools:\n"
+    #         "1. feed(duration: int) -> bool: Feeds the mouse for the given duration in seconds.\n"
+    #         "2. lights(duration: int, quadrant: int) -> bool: Turns on the lights for the given duration in seconds. The quadrant is an integer between 0 and 3, representing which quadrant of the cage the mouse is in.\n"
+    #         "3. speakers(duration: int, quadrant: int) -> bool: Plays a sound for the given duration in seconds. The quadrant is an integer between 0 and 3, representing which quadrant of the cage the mouse is in.\n"
+    #         "4. get_mouse_position() -> Tuple[int, int]: Returns the positions of the two mice in the cage as a tuple of two integers, representing which quadrant of the cage each mouse is in. If the mouse is buried or not visible it will return -1 for that mouse's position. The order of the mice is not preserved.\n"
+    #         "5. get_human_help(request: str) -> str: Returns a response to the given request. Use only when you are stuck. This tool can be used at most once every 24 hours or it will be disabled.\n\n"
+    #         "The smaller LLM is having a hard time refining its strategy to train the mouse to go to a certain quadrant of the cage.\n"
+    #         "You need to reference scientific studies on how scientists have trained mice using rewards to come up with a strategy for the smaller LLM to use.\n"
+    #         "You should give the smaller LLM a complete strategy that works with the tools provided and doesn't require any additional tools.\n"
+    #         "You don't need to give step by step instructions, just the overall strategy, but be as detailed as possible and root your reasoning in scientific studies that are well established for training mice.\n"
+    #         "You can only be used once every hour, so make sure your response is complete and doesn't require addtional clarification from the smaller LLM.\n"
+    #         "Here is the request / status from the smaller LLM: \n\n"
+    #         + request + "\n\n"
+    #     )
 
-        if time.time() - self._last_reasoning_help >= self.REASONING_TIMEOUT:
-            return self.client.chat.completions.create(
-                model="o1-preview",
-                messages=[
-                    {
-                        "role": "user", 
-                        "content": prompt
-                    }
-                ]
-            )
+    #     if time.time() - self._last_reasoning_help >= self.REASONING_TIMEOUT:
+    #         return self.client.chat.completions.create(
+    #             model="o1-preview",
+    #             messages=[
+    #                 {
+    #                     "role": "user", 
+    #                     "content": prompt
+    #                 }
+    #             ]
+    #         )
 
-        return (
-            "You can only use the get_reasoning_help function once every hour.\n"
-            "You last used it " + str(time.time() - self._last_reasoning_help) + " seconds ago.\n"
-            "Please wait " + str(self.REASONING_TIMEOUT - (time.time() - self._last_reasoning_help)) + " seconds before using it again.\n"
-        )
+    #     return (
+    #         "You can only use the get_reasoning_help function once every hour.\n"
+    #         "You last used it " + str(time.time() - self._last_reasoning_help) + " seconds ago.\n"
+    #         "Please wait " + str(self.REASONING_TIMEOUT - (time.time() - self._last_reasoning_help)) + " seconds before using it again.\n"
+    #     )
     
     def cleanup(self):
         self.feeder.cleanup()
@@ -140,8 +140,9 @@ class Feeder:
         FEEDING = 1
 
     class Direction(Enum):
-        LIFT_FEED = 0
-        LOWER_FEED = 1
+        LOWER_FEED = 0
+        LIFT_FEED = 1
+       
 
     # GPIO pins
     PINS = [17, 18, 27, 22]
@@ -154,7 +155,7 @@ class Feeder:
         [0,0,0,1]
     ]
 
-    STEPS_PER_FEED = 120
+    STEPS_PER_FEED = 150
 
     def __init__(self):
         GPIO.setmode(GPIO.BCM)
@@ -171,15 +172,15 @@ class Feeder:
     def _step(self, num_steps: int, direction: Direction):
         
         # (TODO) this is a stub, it may be reversed -- need to check hardware setup
-        step_sequence = list(reversed(self.STEP_SEQUENCE)) if direction == self.Direction.LIFT_FEED else self.STEP_SEQUENCE
+        step_sequence = self.STEP_SEQUENCE if direction == self.Direction.LOWER_FEED else list(reversed(self.STEP_SEQUENCE))
         for _ in range(num_steps):
-            for step in step_sequence:
+            for step in reversed(step_sequence):
                 for pin, val in zip(self.PINS, step):
                     GPIO.output(pin, val)
                 time.sleep(0.01)
 
-        for pin in self.PINS:
-            GPIO.output(pin, False)
+        # for pin in self.PINS:
+        #     GPIO.output(pin, False)
 
     def _lower_feeder(self):
         self._step(self.STEPS_PER_FEED, self.Direction.LOWER_FEED)
