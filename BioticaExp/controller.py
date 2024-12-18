@@ -162,7 +162,7 @@ class Feeder:
         [0,0,0,1]
     ]
 
-    STEPS_PER_FEED = 150
+    STEPS_PER_FEED = 225
 
     def __init__(self):
         GPIO.setmode(GPIO.BCM)
