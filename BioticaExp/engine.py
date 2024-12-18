@@ -17,6 +17,7 @@ load_dotenv()
 
 # Configure the logger
 logging.basicConfig(
+    filename='agent.log',
     level=logging.INFO,  # Set the default logging level
     format="%(asctime)s - %(levelname)s - %(message)s",  # Customize the log format
     datefmt="%Y-%m-%d %H:%M:%S",  # Format the timestamp
@@ -79,6 +80,9 @@ class TrainingAgent:
 
         self.log_url = os.getenv("LOG_URL")
         self.api_key = os.getenv("API_KEY")
+
+        logging.info(f"assistant id: {self.assistant.id}")
+        logging.info(f"thread id: {self.thread.id}")
 
     def _log(self, data: dict):
         payload = {
@@ -168,7 +172,7 @@ class TrainingAgent:
                                 print(f"Error cancelling run: {e}")                            
                             return self.status
                         time.sleep(0.5)
-                    logging.debug("Tool outputs submitted successfully.")
+                    logging.info("Tool outputs submitted successfully.")
                 else:
                     print("Run expired")
             except Exception as e:

@@ -6,7 +6,7 @@ import time
 
 def get_additional_instructions(input_queue, stop_event):
     if not stop_event.is_set():
-        user_input = input("Enter additional instructions:")
+        user_input = input("Enter additional instructions: ")
         input_queue.put(user_input)
         stop_event.set()
 
@@ -48,4 +48,4 @@ if __name__ == "__main__":
             if "pressed" in train_result:
                 additional_instructions = f"The mouse recentlly pressed the {train_result}!"
 
-        time.sleep(10)
+        time.sleep(3)
