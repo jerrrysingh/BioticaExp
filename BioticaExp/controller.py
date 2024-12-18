@@ -15,6 +15,9 @@ class MainController:
     LEFT_LEVER_SWITCH = 26
     RIGHT_LEVER_SWITCH = 20
 
+    MIN_FREQ = 50
+    MAX_FREQ = 10000
+
     class LeverState(Enum):
         UNPRESSED = 0
         PRESSED = 1
@@ -39,8 +42,8 @@ class MainController:
             self.LeverState.UNPRESSED, # left lever
             self.LeverState.UNPRESSED, # right lever
         ]
-        self._last_human_help = time.time()
-        self._last_reasoning_help = time.time()
+        self._last_human_help = 0
+        self._last_reasoning_help = 0
 
     def _left_lever_callback(self, channel):
         self.lever_state[0] = self.LeverState.PRESSED
@@ -56,9 +59,11 @@ class MainController:
         return self.feeder.feed(duration)
 
     def play_sound(self, duration: int, frequency: int) -> bool:
+        if frequency < self.MIN_FREQ or frequency > self.MAX_FREQ:
+            return False
         return self.speaker.play(duration, frequency)
 
-    def wait_for_lever(self, duration: int) -> int:
+    def wait_for_lever(self, timeout: int) -> int:
         self.lever_state[0] = self.LeverState.UNPRESSED
         self.lever_state[1] = self.LeverState.UNPRESSED
         start_time = time.time()
@@ -67,19 +72,19 @@ class MainController:
         (self.lever_state[1] == self.LeverState.UNPRESSED):
             time.sleep(0.1)
         if self.lever_state[0] == self.LeverState.PRESSED:
-            return 0
+            return 0 # left lever   
         elif self.lever_state[1] == self.LeverState.PRESSED:
-            return 1
-        return -1
+            return 1 # right lever
+        return -1 # neither lever
 
     def delay(self, duration: int) -> bool:
         time.sleep(duration)
         return True
 
-    
     def get_human_help(self, request: str) -> str:
         if time.time() - self._last_human_help >= self.HUMAN_TIMEOUT:
-            return input(request + ":\n\n")
+            self._last_human_help = time.time()
+            return str(input(request + ":\n\n"))
         return (
             "You can only use the get_human_help function once every 24 hours.\n"
             "You last used it " + str(time.time() - self._last_human_help) + " seconds ago.\n"
@@ -87,6 +92,7 @@ class MainController:
         )
     
     def get_reasoning_help(self, request: str) -> str:
+        self._last_reasoning_help = time.time()
         prompt = (
             "You are a helpful assistant that helps another smaller LLM with complex reasoning tasks.\n"
             "The smaller LLM is working on a complex task where it has to control the location of two mice in its cage using the tools provided.\n"
