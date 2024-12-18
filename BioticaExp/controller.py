@@ -7,7 +7,7 @@ import threading
 
 class MainController:
 
-    HUMAN_TIMEOUT = 60*60*24 # 1 day
+    HUMAN_TIMEOUT = 60*60 # 1 hour
     REASONING_TIMEOUT = 60*60 # 1 hour
 
     LEFT_LEVER_LED = 8
@@ -22,7 +22,7 @@ class MainController:
         UNPRESSED = 0
         PRESSED = 1
 
-    def __init__(self, client: OpenAI=None):
+    def __init__(self, client: OpenAI=None, engine=None):
         GPIO.setmode(GPIO.BCM)
 
         GPIO.setup(self.LEFT_LEVER_LED, GPIO.OUT)
@@ -35,6 +35,7 @@ class MainController:
         GPIO.add_event_detect(self.LEFT_LEVER_SWITCH, GPIO.FALLING, callback=self._left_lever_callback, bouncetime=300)
         GPIO.add_event_detect(self.RIGHT_LEVER_SWITCH, GPIO.FALLING, callback=self._right_lever_callback, bouncetime=300)
 
+        self.engine = engine
         self.client = client
         self.feeder = Feeder()
         self.speaker = Speaker()
@@ -46,11 +47,13 @@ class MainController:
         self._last_reasoning_help = 0
 
     def _left_lever_callback(self, channel):
+        self.engine.status = "left pressed"
         self.lever_state[0] = self.LeverState.PRESSED
         GPIO.output(self.LEFT_LEVER_LED, GPIO.HIGH)
         threading.Timer(3, GPIO.output, args=(self.LEFT_LEVER_LED, GPIO.LOW)).start()
         
     def _right_lever_callback(self, channel):
+        self.engine.status = "right pressed"
         self.lever_state[1] = self.LeverState.PRESSED
         GPIO.output(self.RIGHT_LEVER_LED, GPIO.HIGH)
         threading.Timer(3, GPIO.output, args=(self.RIGHT_LEVER_LED, GPIO.LOW)).start()
@@ -129,8 +132,10 @@ class MainController:
     #     )
     
     def cleanup(self):
+        GPIO.output(self.LEFT_LEVER_LED, GPIO.LOW)
+        GPIO.output(self.RIGHT_LEVER_LED, GPIO.LOW)
         self.feeder.cleanup()
-        self.speakers.cleanup()
+        self.speaker.cleanup()
 
 
 class Feeder:
@@ -189,7 +194,9 @@ class Feeder:
         self._step(self.STEPS_PER_FEED, self.Direction.LIFT_FEED)
 
     def cleanup(self):
-        GPIO.cleanup()
+        if self.state == self.State.FEEDING:
+            self._raise_feeder()
+        # GPIO.cleanup()
 
     def feed(self, duration: int) -> bool:
         try:
@@ -230,4 +237,5 @@ class Speaker:
             return False
 
     def cleanup(self):
-        GPIO.cleanup()
+        GPIO.output(self.SPEAKER_LED, GPIO.LOW)
+        # GPIO.cleanup()

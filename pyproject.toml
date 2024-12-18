@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "keyboard>=0.13.5",
     "openai>=1.58.1",
     "python-dotenv>=1.0.1",
+    "requests>=2.32.3",
     "rpi-lgpio>=0.6",
 ]
