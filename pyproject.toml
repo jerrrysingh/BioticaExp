@@ -1,0 +1,10 @@
+[project]
+name = "bioticaexp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=1.58.1",
+    "rpi-lgpio>=0.6",
+]

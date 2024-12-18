@@ -3,30 +3,80 @@ import RPi.GPIO as GPIO
 import time
 from enum import Enum
 from openai import OpenAI
-from typing import Tuple
+import threading
 
 class MainController:
 
     HUMAN_TIMEOUT = 60*60*24 # 1 day
     REASONING_TIMEOUT = 60*60 # 1 hour
 
-    def __init__(self, client: OpenAI):
+    LEFT_LEVER_LED = 8
+    RIGHT_LEVER_LED = 1
+    LEFT_LEVER_SWITCH = 26
+    RIGHT_LEVER_SWITCH = 20
+
+    class LeverState(Enum):
+        UNPRESSED = 0
+        PRESSED = 1
+
+    def __init__(self, client: OpenAI=None):
+        GPIO.setmode(GPIO.BCM)
+
+        GPIO.setup(self.LEFT_LEVER_LED, GPIO.OUT)
+        GPIO.output(self.LEFT_LEVER_LED, GPIO.LOW)
+        GPIO.setup(self.RIGHT_LEVER_LED, GPIO.OUT)
+        GPIO.output(self.RIGHT_LEVER_LED, GPIO.LOW)
+
+        GPIO.setup(self.LEFT_LEVER_SWITCH, GPIO.IN, pull_up_down=GPIO.PUD_UP) 
+        GPIO.setup(self.RIGHT_LEVER_SWITCH, GPIO.IN, pull_up_down=GPIO.PUD_UP) 
+        GPIO.add_event_detect(self.LEFT_LEVER_SWITCH, GPIO.FALLING, callback=self._left_lever_callback, bouncetime=300)
+        GPIO.add_event_detect(self.RIGHT_LEVER_SWITCH, GPIO.FALLING, callback=self._right_lever_callback, bouncetime=300)
+
         self.client = client
         self.feeder = Feeder()
-        self.lights = Lights()
-        self.speakers = Speakers()
+        self.speaker = Speaker()
+        self.lever_state = [
+            self.LeverState.UNPRESSED, # left lever
+            self.LeverState.UNPRESSED, # right lever
+        ]
         self._last_human_help = time.time()
         self._last_reasoning_help = time.time()
 
-    def _init_camera(self):
-        pass
+    def _left_lever_callback(self, channel):
+        self.lever_state[0] = self.LeverState.PRESSED
+        GPIO.output(self.LEFT_LEVER_LED, GPIO.HIGH)
+        threading.Timer(3, GPIO.output, args=(self.LEFT_LEVER_LED, GPIO.LOW)).start()
         
+    def _right_lever_callback(self, channel):
+        self.lever_state[1] = self.LeverState.PRESSED
+        GPIO.output(self.RIGHT_LEVER_LED, GPIO.HIGH)
+        threading.Timer(3, GPIO.output, args=(self.RIGHT_LEVER_LED, GPIO.LOW)).start()
+
     def feed(self, duration: int) -> bool:
         return self.feeder.feed(duration)
-    
-    def get_mouse_position(self) -> Tuple[int, int]:
-        pass
 
+    def play_sound(self, duration: int, frequency: int) -> bool:
+        return self.speaker.play(duration, frequency)
+
+    def wait_for_lever(self, duration: int) -> int:
+        self.lever_state[0] = self.LeverState.UNPRESSED
+        self.lever_state[1] = self.LeverState.UNPRESSED
+        start_time = time.time()
+        while (time.time() - start_time < duration) and \
+        (self.lever_state[0] == self.LeverState.UNPRESSED) and \
+        (self.lever_state[1] == self.LeverState.UNPRESSED):
+            time.sleep(0.1)
+        if self.lever_state[0] == self.LeverState.PRESSED:
+            return 0
+        elif self.lever_state[1] == self.LeverState.PRESSED:
+            return 1
+        return -1
+
+    def delay(self, duration: int) -> bool:
+        time.sleep(duration)
+        return True
+
+    
     def get_human_help(self, request: str) -> str:
         if time.time() - self._last_human_help >= self.HUMAN_TIMEOUT:
             return input(request + ":\n\n")
@@ -37,14 +87,13 @@ class MainController:
         )
     
     def get_reasoning_help(self, request: str) -> str:
-
         prompt = (
             "You are a helpful assistant that helps another smaller LLM with complex reasoning tasks.\n"
             "The smaller LLM is working on a complex task where it has to control the location of two mice in its cage using the tools provided.\n"
             "The LLM has access to the following tools:\n"
             "1. feed(duration: int) -> bool: Feeds the mouse for the given duration in seconds.\n"
-            "2. lights(duration: int) -> bool: Turns on the lights for the given duration in seconds.\n"
-            "3. speakers(duration: int) -> bool: Plays a sound for the given duration in seconds.\n"
+            "2. lights(duration: int, quadrant: int) -> bool: Turns on the lights for the given duration in seconds. The quadrant is an integer between 0 and 3, representing which quadrant of the cage the mouse is in.\n"
+            "3. speakers(duration: int, quadrant: int) -> bool: Plays a sound for the given duration in seconds. The quadrant is an integer between 0 and 3, representing which quadrant of the cage the mouse is in.\n"
             "4. get_mouse_position() -> Tuple[int, int]: Returns the positions of the two mice in the cage as a tuple of two integers, representing which quadrant of the cage each mouse is in. If the mouse is buried or not visible it will return -1 for that mouse's position. The order of the mice is not preserved.\n"
             "5. get_human_help(request: str) -> str: Returns a response to the given request. Use only when you are stuck. This tool can be used at most once every 24 hours or it will be disabled.\n\n"
             "The smaller LLM is having a hard time refining its strategy to train the mouse to go to a certain quadrant of the cage.\n"
@@ -59,8 +108,14 @@ class MainController:
         if time.time() - self._last_reasoning_help >= self.REASONING_TIMEOUT:
             return self.client.chat.completions.create(
                 model="o1-preview",
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ]
             )
+
         return (
             "You can only use the get_reasoning_help function once every hour.\n"
             "You last used it " + str(time.time() - self._last_reasoning_help) + " seconds ago.\n"
@@ -69,7 +124,6 @@ class MainController:
     
     def cleanup(self):
         self.feeder.cleanup()
-        self.lights.cleanup()
         self.speakers.cleanup()
 
 
@@ -81,87 +135,92 @@ class Feeder:
 
     class Direction(Enum):
         LIFT_FEED = 0
-        FEED = 1
+        LOWER_FEED = 1
 
     # GPIO pins
-    IN1 = 17
-    IN2 = 18
-    IN3 = 27
-    IN4 = 22
+    PINS = [17, 18, 27, 22]
 
     # Stepper motor step sequence
     STEP_SEQUENCE = [
-        [1, 0, 0, 0],
-        [1, 1, 0, 0],
-        [0, 1, 0, 0],
-        [0, 1, 1, 0],
-        [0, 0, 1, 0],
-        [0, 0, 1, 1],
-        [0, 0, 0, 1],
-        [1, 0, 0, 1],
+        [1,0,0,0],
+        [0,1,0,0],
+        [0,0,1,0],
+        [0,0,0,1]
     ]
 
-    STEPS_PER_FEED = 512
+    STEPS_PER_FEED = 120
 
     def __init__(self):
         GPIO.setmode(GPIO.BCM)
         self._setup_gpio()
 
-        # (TODO) this requires manual checking of state before initializing - should  prompt user instead
-
-        self.state = Feeder.State.Idle
+        input("Verify feeder is lifted and press enter to continue...")
+        self.state = self.State.IDLE
 
     def _setup_gpio(self):
-        GPIO.setup(self.IN1, GPIO.OUT)
-        GPIO.setup(self.IN2, GPIO.OUT)
-        GPIO.setup(self.IN3, GPIO.OUT)
-        GPIO.setup(self.IN4, GPIO.OUT)
+        for p in self.PINS:
+            GPIO.setup(p, GPIO.OUT)
+            GPIO.output(p, False)
 
     def _step(self, num_steps: int, direction: Direction):
         
         # (TODO) this is a stub, it may be reversed -- need to check hardware setup
-        step_sequence = Feeder.STEP_SEQUENCE if direction == Feeder.Direction.LIFT_FEED else reversed(Feeder.STEP_SEQUENCE)
+        step_sequence = list(reversed(self.STEP_SEQUENCE)) if direction == self.Direction.LIFT_FEED else self.STEP_SEQUENCE
         for _ in range(num_steps):
             for step in step_sequence:
-                GPIO.output(self.IN1, step[0])
-                GPIO.output(self.IN2, step[1])
-                GPIO.output(self.IN3, step[2])
-                GPIO.output(self.IN4, step[3])
-                time.sleep(0.001)
+                for pin, val in zip(self.PINS, step):
+                    GPIO.output(pin, val)
+                time.sleep(0.01)
+
+        for pin in self.PINS:
+            GPIO.output(pin, False)
 
     def _lower_feeder(self):
-        self._step(Feeder.STEPS_PER_FEED, Feeder.Direction.FEED)
+        self._step(self.STEPS_PER_FEED, self.Direction.LOWER_FEED)
 
     def _raise_feeder(self):
-        self._step(Feeder.STEPS_PER_FEED, Feeder.Direction.LIFT_FEED)
+        self._step(self.STEPS_PER_FEED, self.Direction.LIFT_FEED)
 
     def cleanup(self):
         GPIO.cleanup()
 
     def feed(self, duration: int) -> bool:
-        if self.state == Feeder.State.Idle:
-            self.state = Feeder.State.Feeding
-            self._lower_feeder()
+        try:
+            if self.state == self.State.IDLE:
+                self.state = self.State.FEEDING
+                self._lower_feeder()
+                time.sleep(duration)
+                self._raise_feeder()
+                self.state = self.State.IDLE
+                return True
+            else:
+                return False
+        except Exception as e:
+            return False
+
+class Speaker:
+
+    SPEAKER_PIN = 21
+    SPEAKER_LED = 7
+
+    def __init__(self):
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.SPEAKER_PIN, GPIO.OUT)
+        GPIO.setup(self.SPEAKER_LED, GPIO.OUT)
+        GPIO.output(self.SPEAKER_LED, GPIO.LOW)
+
+    def play(self, duration: int, frequency: int) -> bool:
+        try:
+            GPIO.output(self.SPEAKER_LED, GPIO.HIGH)
+            pwm = GPIO.PWM(self.SPEAKER_PIN, frequency)
+            pwm.start(50)
             time.sleep(duration)
-            self._raise_feeder()
-            self.state = Feeder.State.Idle
+            pwm.stop()
+            GPIO.output(self.SPEAKER_LED, GPIO.LOW)
             return True
-        
-        # (TODO) add better error handling
-        return False # should be unreachable unless error
-
-class Lights:
-    def __init__(self):
-        pass
+        except Exception as e:
+            print(e)
+            return False
 
     def cleanup(self):
-        pass
-
-
-class Speakers:
-    def __init__(self):
-        pass
-
-    def cleanup(self):
-        pass
-
+        GPIO.cleanup()
