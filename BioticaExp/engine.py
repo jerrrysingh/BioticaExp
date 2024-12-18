@@ -52,6 +52,7 @@ class TrainingAgent:
 
     def __init__(self):
         self.status = "idle"
+        self.lever_status = "idle"
         self.client = OpenAI()
         self.controller = MainController(engine=self)
         self.assistant = self.client.beta.assistants.create(
@@ -107,7 +108,7 @@ class TrainingAgent:
                 thread_id=self.thread.id,
                 run_id=run.id
             )
-            if self.status == "kill" or self.status == "left pressed" or self.status == "right pressed":
+            if self.status == "kill" or (self.status != "waiting" and "pressed" in self.status):
                 try:
                     run = self.client.beta.threads.runs.cancel(
                         thread_id=self.thread.id,
@@ -122,7 +123,7 @@ class TrainingAgent:
 
         while run.status != "completed":
             print(f"run status: {run.status}")
-            if self.status == "kill" or self.status == "left pressed" or self.status == "right pressed":
+            if self.status == "kill" or (self.status != "waiting" and "pressed" in self.status):
                 return self.status
             logging.info(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {run.status}")
             self._log({"status": run.status})
@@ -155,7 +156,7 @@ class TrainingAgent:
                             thread_id=self.thread.id,
                             run_id=run.id
                         )
-                        if self.status == "kill" or self.status == "left pressed" or self.status == "right pressed":
+                        if self.status == "kill" or (self.status != "waiting" and "pressed" in self.status):
                             try:
                                 run = self.client.beta.threads.runs.cancel(
                                     thread_id=self.thread.id,
