@@ -153,6 +153,7 @@ class Feeder:
 
     # GPIO pins
     PINS = [17, 18, 27, 22]
+    SWITCH_PIN = 16
 
     # Stepper motor step sequence
     STEP_SEQUENCE = [
@@ -162,38 +163,41 @@ class Feeder:
         [0,0,0,1]
     ]
 
-    STEPS_PER_FEED = 225
+    LIFT_STEPS = 200
 
     def __init__(self):
         GPIO.setmode(GPIO.BCM)
         self._setup_gpio()
 
         input("Verify feeder is lifted and press enter to continue...")
+        if GPIO.input(self.SWITCH_PIN) != GPIO.HIGH:
+            raise Exception("Feeder is not lifted")
         self.state = self.State.IDLE
 
     def _setup_gpio(self):
         for p in self.PINS:
             GPIO.setup(p, GPIO.OUT)
             GPIO.output(p, False)
+        GPIO.setup(self.SWITCH_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Pull-up enabled
 
-    def _step(self, num_steps: int, direction: Direction):
+    def _step(self, direction: Direction):
         
         # (TODO) this is a stub, it may be reversed -- need to check hardware setup
         step_sequence = self.STEP_SEQUENCE if direction == self.Direction.LOWER_FEED else list(reversed(self.STEP_SEQUENCE))
-        for _ in range(num_steps):
-            for step in reversed(step_sequence):
-                for pin, val in zip(self.PINS, step):
-                    GPIO.output(pin, val)
-                time.sleep(0.01)
-
-        # for pin in self.PINS:
-        #     GPIO.output(pin, False)
+        for step in step_sequence:
+            for pin, val in zip(self.PINS, step):
+                GPIO.output(pin, val)
+            time.sleep(0.01)
 
     def _lower_feeder(self):
-        self._step(self.STEPS_PER_FEED, self.Direction.LOWER_FEED)
+        while GPIO.input(self.SWITCH_PIN) == GPIO.HIGH:
+            self._step(self.Direction.LOWER_FEED)
 
     def _raise_feeder(self):
-        self._step(self.STEPS_PER_FEED, self.Direction.LIFT_FEED)
+        while GPIO.input(self.SWITCH_PIN) == GPIO.LOW:
+            self._step(self.Direction.LIFT_FEED)
+        for _ in range(self.LIFT_STEPS):
+            self._step(self.Direction.LIFT_FEED)
 
     def cleanup(self):
         while self.state == self.State.FEEDING:

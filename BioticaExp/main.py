@@ -13,7 +13,7 @@ def get_additional_instructions(input_queue, stop_event):
 def train_agent(agent, additional_instructions, result_queue):
     result_queue.put(agent.train(additional_instructions))
 
-if __name__ == "__main__":
+def main():
     agent = TrainingAgent()
 
     print(f"assistant id: {agent.assistant.id}")
@@ -50,6 +50,18 @@ if __name__ == "__main__":
                     additional_instructions = f"The mouse recentlly pressed the {train_result}!"
 
             time.sleep(3)
+
+            try:
+               agent.client.beta.threads.runs.cancel(
+                    thread_id=agent.thread.id,
+                        run_id=agent.run.id
+                    )
+               print("Run cancelled")
+            except Exception as e:
+                print(f"Error cancelling run: {e}") 
     finally:
         print("Cleaning up...")
         agent.cleanup()
+
+if __name__ == "__main__":
+    main()

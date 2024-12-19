@@ -102,23 +102,23 @@ class TrainingAgent:
 
     def train(self, additional_instructions: str=None):
         logging.info(additional_instructions)
-        run = self.client.beta.threads.runs.create(
+        self.run = self.client.beta.threads.runs.create(
             thread_id=self.thread.id,
             assistant_id=self.assistant.id,
             additional_instructions=additional_instructions
         )
         self.status = "running"
 
-        while run.status == "queued" or run.status == "in_progress":
-            run = self.client.beta.threads.runs.retrieve(
+        while self.run.status == "queued" or self.run.status == "in_progress":
+            self.run = self.client.beta.threads.runs.retrieve(
                 thread_id=self.thread.id,
-                run_id=run.id
+                run_id=self.run.id
             )
             if self.status == "kill" or (self.status != "waiting" and "pressed" in self.status):
                 try:
-                    run = self.client.beta.threads.runs.cancel(
+                    self.client.beta.threads.runs.cancel(
                         thread_id=self.thread.id,
-                        run_id=run.id
+                        run_id=self.run.id
                     )
                     logging.info("Run cancelled")
                 except Exception as e:
@@ -127,16 +127,16 @@ class TrainingAgent:
                 return self.status
             time.sleep(0.5)
 
-        while run.status != "completed":
+        while self.run.status != "completed":
             if self.status == "kill" or (self.status != "waiting" and "pressed" in self.status):
                 return self.status
-            self._log({"status": run.status})
-            thread_messages = self.client.beta.threads.messages.list(self.thread.id, run_id=run.id)
+            self._log({"status": self.run.status})
+            thread_messages = self.client.beta.threads.messages.list(self.thread.id, run_id=self.run.id)
             for message in thread_messages.data:
                 self._log({"messages": str(message.content)})
 
             tool_outputs = []
-            for tool in run.required_action.submit_tool_outputs.tool_calls:
+            for tool in self.run.required_action.submit_tool_outputs.tool_calls:
                 self._log({"tool_calls": str(tool)})
                 try:
                     tool_outputs.append({
@@ -148,22 +148,22 @@ class TrainingAgent:
             logging.info(tool_outputs)
             time.sleep(3)
             try:
-                # if run.status != "expired":
-                run = self.client.beta.threads.runs.submit_tool_outputs(
+                # if self.run.status != "expired":
+                self.client.beta.threads.runs.submit_tool_outputs(
                     thread_id=self.thread.id,
-                    run_id=run.id,
+                    run_id=self.run.id,
                     tool_outputs=tool_outputs
                 )
-                while run.status == "queued" or run.status == "in_progress":
-                    run = self.client.beta.threads.runs.retrieve(
+                while self.run.status == "queued" or self.run.status == "in_progress":
+                    self.run = self.client.beta.threads.runs.retrieve(
                         thread_id=self.thread.id,
-                        run_id=run.id
+                        run_id=self.run.id
                     )
                     if self.status == "kill" or (self.status != "waiting" and "pressed" in self.status):
                         try:
-                            run = self.client.beta.threads.runs.cancel(
+                            self.client.beta.threads.runs.cancel(
                                 thread_id=self.thread.id,
-                                run_id=run.id
+                                run_id=self.run.id
                             )
                             logging.info("Run cancelled")
                         except Exception as e:
