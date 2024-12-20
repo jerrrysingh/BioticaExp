@@ -38,8 +38,9 @@ def main():
                 if input_stop_event.is_set() and not input_queue.empty():
                     additional_instructions = input_queue.get()
                     print(f"Received additional instructions: {additional_instructions}")
+                    agent.status = "kill"
                 time.sleep(1)
-            agent.status = "kill"
+
             train_thread.join()
             print("Agent killed, restarting...\n")
             runs = agent.client.beta.threads.runs.list(

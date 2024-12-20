@@ -41,8 +41,9 @@ class TrainingAgent:
         # "If you need help you have two ways of getting it. The first is a function called get_reasoning_help, where you can pass in a request as a string, and receive a response from a much smarter artificial intelligence model. "
         "You can call this function once every hour. \n"
         "If you need help you can call a function called get_human_help, where you can pass in a request as a string and receive a response from a human. You can call this function only once every 1 hour it or itwill be disabled.\n"
-        # "Finally you wait for time to pass by passing the number of seconds you would like to wait for into the delay function. The maximum duration is 5 minutes, but you can call this function multiple times to delay for longer durations.\n"
-        "Your job is to train the mice to press the lever."
+        "Finally you wait for time to pass by passing the number of seconds you would like to wait for into the delay function. The maximum duration is 3 minutes, but you can call this function multiple times to delay for longer durations.\n"
+        "Your job is to train the mice to press the lever.\n"
+        "You can only exit the program once you are confident that the mice are trained successfully."
     )
 
     THREAD_PROMPT = (
@@ -74,7 +75,7 @@ class TrainingAgent:
             "feed": self.controller.feed,
             "play_sound": self.controller.play_sound,
             "wait_for_lever": self.controller.wait_for_lever,
-            # "delay": self.controller.delay,
+            "delay": self.controller.delay,
             "get_human_help": self.controller.get_human_help,
             # 'get_reasoning_help': self.controller.get_reasoning_help,
         }
@@ -103,7 +104,6 @@ class TrainingAgent:
     def train(self, additional_instructions: str=None):
         logging.info(additional_instructions)
         if additional_instructions:
-            print("*"*100, "additional instructions", additional_instructions, "*"*100)
             self.client.beta.threads.messages.create(
                 thread_id=self.thread.id,
                 role="user",

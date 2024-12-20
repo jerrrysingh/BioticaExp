@@ -75,7 +75,7 @@ delay = {
     "type": "function",
     "function": {
         "name": "delay",
-        "description": "Blocking function that makes the program wait for a specified duration. This function is useful because the experiment may last multiple hours or days and you may want to space out parts of your experiment. The maximum duration is 5 minutes, but feel free to repeatedly call this function to delay execution for longer durations.",
+        "description": "Blocking function that makes the program wait for a specified duration. This function is useful because the experiment may last multiple hours or days and you may want to space out parts of your experiment. The maximum duration is 3 minutes, but feel free to repeatedly call this function to delay execution for longer durations.",
         "strict": True,
         "parameters": {
             "type": "object",
@@ -85,7 +85,7 @@ delay = {
             "properties": {
                 "duration": {
                     "type": "number",
-                    "description": "The amount of time, in seconds, to delay execution. The maximum duration is 5 minutes."
+                    "description": "The amount of time, in seconds, to delay execution. The maximum duration is 3 minutes."
                 }
             },
             "additionalProperties": False
@@ -115,4 +115,4 @@ get_human_help = {
     }
 }
 
-tools = [feed, play_sound, wait_for_lever, get_human_help]
+tools = [feed, play_sound, wait_for_lever, delay, get_human_help]
