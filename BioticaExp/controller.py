@@ -47,13 +47,15 @@ class MainController:
         self._last_reasoning_help = 0
 
     def _left_lever_callback(self, channel):
-        self.engine.status = "left pressed"
+        if self.engine.lever_status != "waiting":
+            self.engine.status = "left pressed"
         self.lever_state[0] = self.LeverState.PRESSED
         GPIO.output(self.LEFT_LEVER_LED, GPIO.HIGH)
         threading.Timer(3, GPIO.output, args=(self.LEFT_LEVER_LED, GPIO.LOW)).start()
         
     def _right_lever_callback(self, channel):
-        self.engine.status = "right pressed"
+        if self.engine.lever_status != "waiting":
+            self.engine.status = "right pressed"
         self.lever_state[1] = self.LeverState.PRESSED
         GPIO.output(self.RIGHT_LEVER_LED, GPIO.HIGH)
         threading.Timer(3, GPIO.output, args=(self.RIGHT_LEVER_LED, GPIO.LOW)).start()

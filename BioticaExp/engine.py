@@ -101,11 +101,6 @@ class TrainingAgent:
 
 
     def train(self, additional_instructions: str=None):
-        print("hello hello hello")
-        print("="*100)
-        print(self.status)
-        print(self.lever_status)
-        print("="*100)
         logging.info(additional_instructions)
         if additional_instructions:
             print("*"*100, "additional instructions", additional_instructions, "*"*100)
@@ -127,35 +122,11 @@ class TrainingAgent:
                 run_id=self.run.id
             )
             if self.status == "kill" or (self.lever_status != "waiting" and "pressed" in self.status):
-                print("*"*10, self.status, "*"*10)
-                # try:
-                #     self.client.beta.threads.runs.cancel(
-                #         thread_id=self.thread.id,
-                #         run_id=self.run.id
-                #     )
-                #     print("*"*10, "run cancelled", "*"*10)
-                #     logging.info("Run cancelled")
-                # except Exception as e:
-                #     self.status = "error"
-                #     print(f"Error cancelling run: {e}")
-                print("*"*10, self.status, "*"*10, 134)
                 return self.status
             time.sleep(0.5)
 
         while self.run.status != "completed":
             if self.status == "kill" or (self.lever_status != "waiting" and "pressed" in self.status):
-                print("*"*10, self.status, "140", "*"*10) 
-                # try:
-                #     self.client.beta.threads.runs.cancel(
-                #         thread_id=self.thread.id,
-                #         run_id=self.run.id
-                #     )
-                #     print("*"*10, "run cancelled", "*"*10)
-                #     logging.info("Run cancelled")
-                # except Exception as e:
-                #     self.status = "error"
-                #     print(f"Error cancelling run: {e}")
-                print("*"*10, self.status, "*"*10, 134)
                 return self.status
             self._log({"status": self.run.status})
             thread_messages = self.client.beta.threads.messages.list(self.thread.id, run_id=self.run.id)
@@ -165,16 +136,6 @@ class TrainingAgent:
             tool_outputs = []
             for tool in self.run.required_action.submit_tool_outputs.tool_calls:
                 if self.status == "kill" or (self.lever_status != "waiting" and "pressed" in self.status):
-                    # try:
-                    #     self.client.beta.threads.runs.cancel(
-                    #         thread_id=self.thread.id,
-                    #         run_id=self.run.id
-                    #     )
-                    #     logging.info("Run cancelled")
-                    # except Exception as e:
-                    #     self.status = "error"
-                    #     print(f"Error cancelling run: {e}")
-                    print("*"*10, self.status, "*"*10, 159)
                     return self.status
                 self._log({"tool_calls": str(tool)})
                 try:
@@ -186,14 +147,11 @@ class TrainingAgent:
                         self.lever_status = "idle"
                 except Exception as e:
                     print(f"Error calling function {tool.function.name}: {e}")
-            print("="*100, "tool outputs!!!!")
             logging.info(tool_outputs)
             if self.status == "kill" or (self.lever_status != "waiting" and "pressed" in self.status):
-                print("*"*10, self.status, "*"*10, 179)
                 return self.status
             time.sleep(3)
             try:
-                # if self.run.status != "expired":
                 self.client.beta.threads.runs.submit_tool_outputs(
                     thread_id=self.thread.id,
                     run_id=self.run.id,
@@ -204,23 +162,10 @@ class TrainingAgent:
                         thread_id=self.thread.id,
                         run_id=self.run.id
                     )
-                    print(self.status)
-                    if self.status == "kill" or (self.lever_status != "waiting" and "pressed" in self.status):
-                        # try:
-                        #     self.client.beta.threads.runs.cancel(
-                        #         thread_id=self.thread.id,
-                        #         run_id=self.run.id
-                        #     )
-                        #     logging.info("Run cancelled")
-                        # except Exception as e:
-                        #     self.status = "error"
-                        #     print(f"Error cancelling run: {e}")                            
-                        print("*"*10, self.status, "*"*10, 195)
+                    if self.status == "kill" or (self.lever_status != "waiting" and "pressed" in self.status):                       
                         return self.status
                     time.sleep(0.5)
                 logging.info("Tool outputs submitted successfully.")
-                # else:
-                #     print("Run expired")
             except Exception as e:
                 print("Failed to submit tool outputs:", e)
 

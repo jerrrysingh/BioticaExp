@@ -38,9 +38,9 @@ def main():
                 if input_stop_event.is_set() and not input_queue.empty():
                     additional_instructions = input_queue.get()
                     print(f"Received additional instructions: {additional_instructions}")
-                    agent.status = "kill"
+                    
                 time.sleep(1)
-
+            agent.status = "kill"
             train_thread.join()
             print("Agent killed, restarting...\n")
             runs = agent.client.beta.threads.runs.list(
@@ -69,7 +69,7 @@ def main():
             if not result_queue.empty():
                 train_result = result_queue.get()
                 print(f"train result: {train_result}")
-                if "pressed" in train_result:
+                if train_result and "pressed" in train_result:
                     additional_instructions = f"The mouse recentlly pressed the {train_result}!"
 
             time.sleep(3)
