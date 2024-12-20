@@ -115,4 +115,26 @@ get_human_help = {
     }
 }
 
-tools = [feed, play_sound, wait_for_lever, delay, get_human_help]
+get_reasoning_help = {
+    "type": "function",
+    "function": {
+        "name": "get_reasoning_help",
+        "description": "Provides reasoning assistance to a smaller LLM working on training mice for tasks. It can only be called once every 10 minutes (600 seconds), or it will be disabled. Use this whenever you are stuck and need a better strategy.",
+        "strict": True,
+        "parameters": {
+            "type": "object",
+            "required": [
+                "request"
+            ],
+            "properties": {
+                "request": {
+                    "type": "string",
+                    "description": "A request string that describes the reasoning help needed. Be as detailed as possible and explain the whole task and strategy you are using. The larger LLM doesn't have prior context on the task so you have to fully explain it in your request."
+                }
+            },
+            "additionalProperties": False
+        }
+    }
+}
+
+tools = [feed, play_sound, wait_for_lever, delay, get_human_help, get_reasoning_help]

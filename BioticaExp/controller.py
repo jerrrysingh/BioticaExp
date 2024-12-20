@@ -48,14 +48,16 @@ class MainController:
 
     def _left_lever_callback(self, channel):
         if self.engine.lever_status != "waiting":
-            self.engine.status = "left pressed"
+            self.engine.write_to_pipe("The left lever was recently pressed by the mouse.")
+            print("left lever interrupt")
         self.lever_state[0] = self.LeverState.PRESSED
         GPIO.output(self.LEFT_LEVER_LED, GPIO.HIGH)
         threading.Timer(3, GPIO.output, args=(self.LEFT_LEVER_LED, GPIO.LOW)).start()
         
     def _right_lever_callback(self, channel):
         if self.engine.lever_status != "waiting":
-            self.engine.status = "right pressed"
+            self.engine.write_to_pipe("The right lever was recently pressed by the mouse.")
+            print("right lever interrupt")
         self.lever_state[1] = self.LeverState.PRESSED
         GPIO.output(self.RIGHT_LEVER_LED, GPIO.HIGH)
         threading.Timer(3, GPIO.output, args=(self.RIGHT_LEVER_LED, GPIO.LOW)).start()
@@ -90,49 +92,41 @@ class MainController:
     def get_human_help(self, request: str) -> str:
         if time.time() - self._last_human_help >= self.HUMAN_TIMEOUT:
             self._last_human_help = time.time()
-            return str(input(request + ":\n\n"))
+            rsp = str(input(request + ":\n\n"))
+            print(f"human response: {rsp}")
+            return rsp
         return (
             "You can only use the get_human_help function once every 24 hours.\n"
             "You last used it " + str(time.time() - self._last_human_help) + " seconds ago.\n"
             "Please wait " + str(self.HUMAN_TIMEOUT - (time.time() - self._last_human_help)) + " seconds before using it again.\n"
         )
     
-    # def get_reasoning_help(self, request: str) -> str:
-    #     self._last_reasoning_help = time.time()
-    #     prompt = (
-    #         "You are a helpful assistant that helps another smaller LLM with complex reasoning tasks.\n"
-    #         "The smaller LLM is working on a complex task where it has to control the location of two mice in its cage using the tools provided.\n"
-    #         "The LLM has access to the following tools:\n"
-    #         "1. feed(duration: int) -> bool: Feeds the mouse for the given duration in seconds.\n"
-    #         "2. lights(duration: int, quadrant: int) -> bool: Turns on the lights for the given duration in seconds. The quadrant is an integer between 0 and 3, representing which quadrant of the cage the mouse is in.\n"
-    #         "3. speakers(duration: int, quadrant: int) -> bool: Plays a sound for the given duration in seconds. The quadrant is an integer between 0 and 3, representing which quadrant of the cage the mouse is in.\n"
-    #         "4. get_mouse_position() -> Tuple[int, int]: Returns the positions of the two mice in the cage as a tuple of two integers, representing which quadrant of the cage each mouse is in. If the mouse is buried or not visible it will return -1 for that mouse's position. The order of the mice is not preserved.\n"
-    #         "5. get_human_help(request: str) -> str: Returns a response to the given request. Use only when you are stuck. This tool can be used at most once every 24 hours or it will be disabled.\n\n"
-    #         "The smaller LLM is having a hard time refining its strategy to train the mouse to go to a certain quadrant of the cage.\n"
-    #         "You need to reference scientific studies on how scientists have trained mice using rewards to come up with a strategy for the smaller LLM to use.\n"
-    #         "You should give the smaller LLM a complete strategy that works with the tools provided and doesn't require any additional tools.\n"
-    #         "You don't need to give step by step instructions, just the overall strategy, but be as detailed as possible and root your reasoning in scientific studies that are well established for training mice.\n"
-    #         "You can only be used once every hour, so make sure your response is complete and doesn't require addtional clarification from the smaller LLM.\n"
-    #         "Here is the request / status from the smaller LLM: \n\n"
-    #         + request + "\n\n"
-    #     )
+    def get_reasoning_help(self, request: str) -> str:
+        prompt = (
+            "You are a helpful assistant that helps another smaller LLM with complex reasoning tasks.\n"
+            "The smaller LLM is working on training two mice in a cage to perform certain tasks.\n"
+            "Here is the LLM's request for help:\n"
+            + request + "\n\n"
+            "Try to give the smaller LLM a detailed strategy that is based on scientific evidence and studies.\n"
+        )
 
-    #     if time.time() - self._last_reasoning_help >= self.REASONING_TIMEOUT:
-    #         return self.client.chat.completions.create(
-    #             model="o1-preview",
-    #             messages=[
-    #                 {
-    #                     "role": "user", 
-    #                     "content": prompt
-    #                 }
-    #             ]
-    #         )
+        if time.time() - self._last_reasoning_help >= self.REASONING_TIMEOUT:
+            self._last_reasoning_help = time.time()
+            return self.client.chat.completions.create(
+                model="o1",
+                messages=[
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ]
+            ).choices[0].message.content
 
-    #     return (
-    #         "You can only use the get_reasoning_help function once every hour.\n"
-    #         "You last used it " + str(time.time() - self._last_reasoning_help) + " seconds ago.\n"
-    #         "Please wait " + str(self.REASONING_TIMEOUT - (time.time() - self._last_reasoning_help)) + " seconds before using it again.\n"
-    #     )
+        return (
+            "You can only use the get_reasoning_help function once every hour.\n"
+            "You last used it " + str(time.time() - self._last_reasoning_help) + " seconds ago.\n"
+            "Please wait " + str(self.REASONING_TIMEOUT - (time.time() - self._last_reasoning_help)) + " seconds before using it again.\n"
+        )
     
     def cleanup(self):
         GPIO.output(self.LEFT_LEVER_LED, GPIO.LOW)
