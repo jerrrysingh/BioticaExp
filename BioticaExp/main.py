@@ -22,7 +22,8 @@ def main():
     additional_instructions = None
 
     try:
-        while True:
+        for i in range(100):
+            print("*"*10, i, "*"*10)
             input_queue = queue.Queue()
             input_stop_event = threading.Event()
             input_thread = threading.Thread(target=get_additional_instructions, args=(input_queue, input_stop_event), daemon=True)
@@ -42,6 +43,28 @@ def main():
 
             train_thread.join()
             print("Agent killed, restarting...\n")
+            runs = agent.client.beta.threads.runs.list(
+                thread_id=agent.thread.id
+            )
+            for run in runs.data:
+                if run.status == "queued" or run.status == "in_progress" or run.status == "requires_action":
+                    try:
+                        agent.client.beta.threads.runs.cancel(
+                            thread_id=agent.thread.id,
+                            run_id=run.id
+                        )
+                    except Exception as e:
+                        print(f"Error cancelling run: {e}")
+                check = agent.client.beta.threads.runs.retrieve(
+                    thread_id=agent.thread.id,
+                    run_id=run.id
+                )
+                while check.status == "cancelling":
+                    check = agent.client.beta.threads.runs.retrieve(
+                        thread_id=agent.thread.id,
+                        run_id=run.id
+                    )
+                    time.sleep(0.1)
             agent.cleanup()
             if not result_queue.empty():
                 train_result = result_queue.get()
@@ -50,15 +73,6 @@ def main():
                     additional_instructions = f"The mouse recentlly pressed the {train_result}!"
 
             time.sleep(3)
-
-            try:
-               agent.client.beta.threads.runs.cancel(
-                    thread_id=agent.thread.id,
-                        run_id=agent.run.id
-                    )
-               print("Run cancelled")
-            except Exception as e:
-                print(f"Error cancelling run: {e}") 
     finally:
         print("Cleaning up...")
         agent.cleanup()

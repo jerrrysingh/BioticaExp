@@ -67,7 +67,7 @@ class MainController:
         return self.speaker.play(duration, frequency)
 
     def wait_for_lever(self, duration: int) -> int:
-        self.engine.status = "waiting"
+        self.engine.lever_status = "waiting"
         self.lever_state[0] = self.LeverState.UNPRESSED
         self.lever_state[1] = self.LeverState.UNPRESSED
         start_time = time.time()
@@ -75,7 +75,6 @@ class MainController:
         (self.lever_state[0] == self.LeverState.UNPRESSED) and \
         (self.lever_state[1] == self.LeverState.UNPRESSED):
             time.sleep(0.1)
-        self.engine.status = "idle"
         if self.lever_state[0] == self.LeverState.PRESSED:
             return 0 # left lever   
         elif self.lever_state[1] == self.LeverState.PRESSED:
