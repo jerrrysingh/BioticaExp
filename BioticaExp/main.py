@@ -21,9 +21,11 @@ def main():
 
     additional_instructions = None
 
+    i = 0
     try:
-        for i in range(100):
+        while True:
             print("*"*10, i, "*"*10)
+            i += 1
             input_queue = queue.Queue()
             input_stop_event = threading.Event()
             input_thread = threading.Thread(target=get_additional_instructions, args=(input_queue, input_stop_event), daemon=True)
