@@ -21,7 +21,7 @@ load_dotenv()
 # Configure the logger
 logging.basicConfig(
     filename='agent.log',
-    level=logging.INFO,  # Set the default logging level
+    level=logging.DEBUG,  # Set the default logging level
     format="%(asctime)s - %(levelname)s - %(message)s",  # Customize the log format
     datefmt="%Y-%m-%d %H:%M:%S",  # Format the timestamp
 )
@@ -39,6 +39,8 @@ class TrainingAgent:
             self.agent = agent
         @override
         def on_event(self, event):
+            if self.agent.interrupt_pipe_data:
+                return
             self.agent._log({"status": str(event.event)})
             thread_messages = self.agent.client.beta.threads.messages.list(self.agent.thread.id, run_id=event.data.id)
             for message in thread_messages.data:
@@ -137,7 +139,7 @@ class TrainingAgent:
 
         logging.info(f"assistant id: {self.assistant.id}")
         logging.info(f"thread id: {self.thread.id}")
-        self.interrupt_pipe = "/tmp/interrupt2"
+        self.interrupt_pipe = "/tmp/interrupt"
         self.interrupt_pipe_data = None
         self._initialize_pipe()
         self.event_handler = self.EventHandler(self)
@@ -150,6 +152,7 @@ class TrainingAgent:
 
     def _update_pipe_data(self):
         while True:
+            logging.debug("update pipe data")
             with open(self.interrupt_pipe, 'r') as pipe:
                 lines = pipe.readlines()
                 if lines:
