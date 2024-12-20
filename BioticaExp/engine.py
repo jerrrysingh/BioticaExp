@@ -167,7 +167,9 @@ class TrainingAgent:
                     time.sleep(0.5)
                 logging.info("Tool outputs submitted successfully.")
             except Exception as e:
+                self.status = "kill"
                 print("Failed to submit tool outputs:", e)
+                return self.status
 
     def cleanup(self):
         self.controller.cleanup()
